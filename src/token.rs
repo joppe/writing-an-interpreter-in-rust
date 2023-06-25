@@ -44,6 +44,14 @@ impl fmt::Display for Token {
     }
 }
 
+pub fn lookup_ident(ident: String) -> Token {
+    match ident.as_str() {
+        "fn" => Token::FUNCTION,
+        "let" => Token::LET,
+        _ => Token::IDENT(ident),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Token;
