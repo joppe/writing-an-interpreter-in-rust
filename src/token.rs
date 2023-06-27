@@ -2,53 +2,86 @@ use std::fmt;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
-    ILLEGAL,
-    EOF,
+    Illegal,
+    Eof,
 
-    IDENT(String),
-    INT(String),
+    // Identifiers + literals
+    Ident(String),
+    Int(String),
 
-    ASSIGN,
-    PLUS,
+    // Operators
+    Assign,
+    Plus,
+    Minus,
+    Bang,
+    Asterisk,
+    Slash,
+    Eq,
+    NotEq,
+    Comma,
+    Semicolon,
 
-    COMMA,
-    SEMICOLON,
+    Lparen,
+    Rparen,
+    Lbrace,
+    Rbrace,
+    Lt,
+    Gt,
 
-    LPAREN,
-    RPAREN,
-    LBRACE,
-    RBRACE,
-
-    FUNCTION,
-    LET,
+    // Keywords
+    Function,
+    Let,
+    True,
+    False,
+    If,
+    Else,
+    Return,
 }
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Token::ILLEGAL => write!(f, "ILLEGAL"),
-            Token::EOF => write!(f, "EOF"),
-            Token::IDENT(ident) => write!(f, "IDENT {}", ident),
-            Token::INT(int) => write!(f, "INT, {}", int),
-            Token::ASSIGN => write!(f, "="),
-            Token::PLUS => write!(f, "+"),
-            Token::COMMA => write!(f, ","),
-            Token::SEMICOLON => write!(f, ";"),
-            Token::LPAREN => write!(f, "("),
-            Token::RPAREN => write!(f, ")"),
-            Token::LBRACE => write!(f, "{{"),
-            Token::RBRACE => write!(f, "}}"),
-            Token::FUNCTION => write!(f, "FUNCTION"),
-            Token::LET => write!(f, "LET"),
+            Token::Illegal => write!(f, "ILLEGAL"),
+            Token::Eof => write!(f, "EOF"),
+            Token::Ident(ident) => write!(f, "IDENT {}", ident),
+            Token::Int(int) => write!(f, "INT, {}", int),
+            Token::Assign => write!(f, "="),
+            Token::Plus => write!(f, "+"),
+            Token::Minus => write!(f, "-"),
+            Token::Bang => write!(f, "!"),
+            Token::Asterisk => write!(f, "*"),
+            Token::Slash => write!(f, "/"),
+            Token::Eq => write!(f, "=="),
+            Token::NotEq => write!(f, "!="),
+            Token::Comma => write!(f, ","),
+            Token::Semicolon => write!(f, ";"),
+            Token::Lparen => write!(f, "("),
+            Token::Rparen => write!(f, ")"),
+            Token::Lbrace => write!(f, "{{"),
+            Token::Rbrace => write!(f, "}}"),
+            Token::Lt => write!(f, "<"),
+            Token::Gt => write!(f, ">"),
+            Token::Function => write!(f, "FUNCTION"),
+            Token::Let => write!(f, "LET"),
+            Token::True => write!(f, "TRUE"),
+            Token::False => write!(f, "FALSE"),
+            Token::If => write!(f, "IF"),
+            Token::Else => write!(f, "ELSE"),
+            Token::Return => write!(f, "RETURN"),
         }
     }
 }
 
 pub fn lookup_ident(ident: String) -> Token {
     match ident.as_str() {
-        "fn" => Token::FUNCTION,
-        "let" => Token::LET,
-        _ => Token::IDENT(ident),
+        "fn" => Token::Function,
+        "let" => Token::Let,
+        "true" => Token::True,
+        "false" => Token::False,
+        "if" => Token::If,
+        "else" => Token::Else,
+        "return" => Token::Return,
+        _ => Token::Ident(ident),
     }
 }
 
@@ -58,6 +91,6 @@ mod tests {
 
     #[test]
     fn to_string() {
-        assert_eq!(Token::LBRACE.to_string(), "{");
+        assert_eq!(Token::Lbrace.to_string(), "{");
     }
 }

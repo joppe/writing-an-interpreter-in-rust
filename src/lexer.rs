@@ -26,15 +26,37 @@ impl Lexer {
         self.skip_whitespace();
 
         let token = match self.char {
-            '=' => Token::ASSIGN,
-            ';' => Token::SEMICOLON,
-            '(' => Token::LPAREN,
-            ')' => Token::RPAREN,
-            ',' => Token::COMMA,
-            '+' => Token::PLUS,
-            '{' => Token::LBRACE,
-            '}' => Token::RBRACE,
-            '\u{0}' => Token::EOF,
+            '=' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+
+                    Token::Eq
+                } else {
+                    Token::Assign
+                }
+            }
+            ';' => Token::Semicolon,
+            '(' => Token::Lparen,
+            ')' => Token::Rparen,
+            ',' => Token::Comma,
+            '+' => Token::Plus,
+            '-' => Token::Minus,
+            '!' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+
+                    Token::NotEq
+                } else {
+                    Token::Bang
+                }
+            }
+            '*' => Token::Asterisk,
+            '/' => Token::Slash,
+            '{' => Token::Lbrace,
+            '}' => Token::Rbrace,
+            '<' => Token::Lt,
+            '>' => Token::Gt,
+            '\u{0}' => Token::Eof,
             _ => {
                 if is_letter(self.char) {
                     let ident = self.read_identifier();
@@ -43,9 +65,9 @@ impl Lexer {
                 } else if is_digit(self.char) {
                     let number = self.read_number();
 
-                    return Token::INT(number);
+                    return Token::Int(number);
                 } else {
-                    return Token::ILLEGAL;
+                    return Token::Illegal;
                 }
             }
         };
@@ -58,6 +80,14 @@ impl Lexer {
     fn skip_whitespace(&mut self) {
         while self.char.is_ascii_whitespace() {
             self.read_char();
+        }
+    }
+
+    fn peek_char(&self) -> char {
+        if self.read_position >= self.input.len() {
+            '\u{0}'
+        } else {
+            self.input[self.read_position]
         }
     }
 
@@ -115,46 +145,94 @@ let add = fn(x, y) {
     x + y;
 };
 
-let result = add(five, ten);";
+let result = add(five, ten);
+!-/*5;
+5 < 10 > 5;
+
+if (5 < 10) {
+    return true;
+} else {
+    return false;
+}
+
+10 == 10;
+10 != 9;";
 
         let tests = vec![
-            Token::LET,
-            Token::IDENT("five".to_string()),
-            Token::ASSIGN,
-            Token::INT("5".to_string()),
-            Token::SEMICOLON,
-            Token::LET,
-            Token::IDENT("ten".to_string()),
-            Token::ASSIGN,
-            Token::INT("10".to_string()),
-            Token::SEMICOLON,
-            Token::LET,
-            Token::IDENT("add".to_string()),
-            Token::ASSIGN,
-            Token::FUNCTION,
-            Token::LPAREN,
-            Token::IDENT("x".to_string()),
-            Token::COMMA,
-            Token::IDENT("y".to_string()),
-            Token::RPAREN,
-            Token::LBRACE,
-            Token::IDENT("x".to_string()),
-            Token::PLUS,
-            Token::IDENT("y".to_string()),
-            Token::SEMICOLON,
-            Token::RBRACE,
-            Token::SEMICOLON,
-            Token::LET,
-            Token::IDENT("result".to_string()),
-            Token::ASSIGN,
-            Token::IDENT("add".to_string()),
-            Token::LPAREN,
-            Token::IDENT("five".to_string()),
-            Token::COMMA,
-            Token::IDENT("ten".to_string()),
-            Token::RPAREN,
-            Token::SEMICOLON,
-            Token::EOF,
+            Token::Let,
+            Token::Ident("five".to_string()),
+            Token::Assign,
+            Token::Int("5".to_string()),
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("ten".to_string()),
+            Token::Assign,
+            Token::Int("10".to_string()),
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("add".to_string()),
+            Token::Assign,
+            Token::Function,
+            Token::Lparen,
+            Token::Ident("x".to_string()),
+            Token::Comma,
+            Token::Ident("y".to_string()),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Ident("x".to_string()),
+            Token::Plus,
+            Token::Ident("y".to_string()),
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("result".to_string()),
+            Token::Assign,
+            Token::Ident("add".to_string()),
+            Token::Lparen,
+            Token::Ident("five".to_string()),
+            Token::Comma,
+            Token::Ident("ten".to_string()),
+            Token::Rparen,
+            Token::Semicolon,
+            Token::Bang,
+            Token::Minus,
+            Token::Slash,
+            Token::Asterisk,
+            Token::Int("5".to_string()),
+            Token::Semicolon,
+            Token::Int("5".to_string()),
+            Token::Lt,
+            Token::Int("10".to_string()),
+            Token::Gt,
+            Token::Int("5".to_string()),
+            Token::Semicolon,
+            Token::If,
+            Token::Lparen,
+            Token::Int("5".to_string()),
+            Token::Lt,
+            Token::Int("10".to_string()),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Else,
+            Token::Lbrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Int("10".to_string()),
+            Token::Eq,
+            Token::Int("10".to_string()),
+            Token::Semicolon,
+            Token::Int("10".to_string()),
+            Token::NotEq,
+            Token::Int("9".to_string()),
+            Token::Semicolon,
+            Token::Eof,
         ];
         let mut lexer = Lexer::new(input.to_string());
 
