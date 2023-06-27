@@ -4,7 +4,7 @@ use crate::{lexer, token};
 
 pub fn start() {
     loop {
-        let input = ask_input();
+        let input = ask_input(">> ");
 
         if input.trim() == "exit" {
             break;
@@ -24,13 +24,15 @@ pub fn start() {
     }
 }
 
-fn ask_input() -> String {
+fn ask_input(prompt: &str) -> String {
     let mut stdout = stdout();
     let stdin = stdin();
 
-    print!(">> ");
+    print!("{}", prompt);
 
     let mut input = String::new();
+
+    // Flush the buffer to ensure the prompt is displayed
     stdout.flush().unwrap();
     stdin.read_line(&mut input).unwrap();
 
