@@ -7,6 +7,8 @@ pub struct Lexer {
     char: char,
 }
 
+pub const EOF: char = '\u{0}';
+
 impl Lexer {
     pub fn new(input: String) -> Lexer {
         let chars = input.chars();
@@ -14,7 +16,7 @@ impl Lexer {
             input: chars.collect(),
             position: 0,
             read_position: 0,
-            char: '\u{0}',
+            char: EOF,
         };
 
         lexer.read_char();
@@ -56,7 +58,7 @@ impl Lexer {
             '}' => Token::Rbrace,
             '<' => Token::Lt,
             '>' => Token::Gt,
-            '\u{0}' => Token::Eof,
+            EOF => Token::Eof,
             _ => {
                 if is_letter(self.char) {
                     let ident = self.read_identifier();
@@ -85,7 +87,7 @@ impl Lexer {
 
     fn peek_char(&self) -> char {
         if self.read_position >= self.input.len() {
-            '\u{0}'
+            EOF
         } else {
             self.input[self.read_position]
         }
@@ -93,7 +95,7 @@ impl Lexer {
 
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
-            self.char = '\u{0}';
+            self.char = EOF;
         } else {
             self.char = self.input[self.read_position];
         }
