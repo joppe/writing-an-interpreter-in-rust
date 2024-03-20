@@ -1,3 +1,4 @@
+use std::fmt;
 use std::mem;
 
 use crate::{
@@ -6,11 +7,26 @@ use crate::{
     token::Token,
 };
 
+#[derive(Clone)]
+pub enum ParserError {
+    UnexpectedToken(Token, Token),
+}
+
+impl fmt::Display for ParserError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ParserError::UnexpectedToken(expected, got) => {
+                write!(f, "expected next token to be {}, got {}", expected, got)
+            }
+        }
+    }
+}
+
 pub struct Parser {
     lexer: Lexer,
     current_token: Token,
     peek_token: Token,
-    errors: Vec<String>,
+    errors: Vec<ParserError>,
 }
 
 impl Parser {
@@ -46,7 +62,7 @@ impl Parser {
         program
     }
 
-    pub fn errors(&self) -> Vec<String> {
+    pub fn errors(&self) -> Vec<ParserError> {
         self.errors.clone()
     }
 
@@ -93,22 +109,16 @@ impl Parser {
         }
     }
 
-    fn peek_error(&mut self, token: &Token) {
-        let msg = format!(
-            "expected next token to be {:?}, got {:?} instead",
-            token, self.peek_token
-        );
-
-        self.errors.push(msg);
-    }
-
     fn expect_peek(&mut self, token: &Token) -> bool {
         if self.peek_token_is(token) {
             self.next_token();
 
             true
         } else {
-            self.peek_error(token);
+            self.errors.push(ParserError::UnexpectedToken(
+                token.clone(),
+                self.peek_token.clone(),
+            ));
 
             false
         }
