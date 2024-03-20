@@ -3,6 +3,7 @@ use std::fmt;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Let(String, Expression),
+    Return(Expression),
 }
 
 impl fmt::Display for Statement {
@@ -11,6 +12,7 @@ impl fmt::Display for Statement {
             Statement::Let(identifier, expression) => {
                 write!(f, "let {} = {};", identifier, expression)
             }
+            Statement::Return(expression) => write!(f, "return {};", expression),
         }
     }
 }

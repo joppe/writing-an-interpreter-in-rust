@@ -33,7 +33,7 @@ impl Parser {
             statements: Vec::new(),
         };
 
-        while !self.current_token_is(Token::Eof) {
+        while !self.current_token_is(&Token::Eof) {
             let statement = self.parse_statement();
 
             if let Some(statement) = statement {
@@ -59,11 +59,11 @@ impl Parser {
             _ => return None,
         };
 
-        if !self.expect_peek(Token::Assign) {
+        if !self.expect_peek(&Token::Assign) {
             return None;
         }
 
-        while !self.current_token_is(Token::Semicolon) {
+        while !self.current_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
@@ -73,14 +73,27 @@ impl Parser {
         ))
     }
 
+    fn parse_return_statement(&mut self) -> Option<Statement> {
+        let statement = Statement::Return(Expression::Ident("".to_string()));
+
+        self.next_token();
+
+        while !self.current_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Some(statement)
+    }
+
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.current_token {
             Token::Let => self.parse_let_statement(),
+            Token::Return => self.parse_return_statement(),
             _ => None,
         }
     }
 
-    fn peek_error(&mut self, token: Token) {
+    fn peek_error(&mut self, token: &Token) {
         let msg = format!(
             "expected next token to be {:?}, got {:?} instead",
             token, self.peek_token
@@ -89,24 +102,24 @@ impl Parser {
         self.errors.push(msg);
     }
 
-    fn expect_peek(&mut self, token: Token) -> bool {
-        if self.peek_token_is(token.clone()) {
+    fn expect_peek(&mut self, token: &Token) -> bool {
+        if self.peek_token_is(token) {
             self.next_token();
 
             true
         } else {
-            self.peek_error(token.clone());
+            self.peek_error(token);
 
             false
         }
     }
 
-    fn peek_token_is(&self, token: Token) -> bool {
-        self.peek_token == token
+    fn peek_token_is(&self, token: &Token) -> bool {
+        self.peek_token == *token
     }
 
-    fn current_token_is(&self, token: Token) -> bool {
-        self.current_token == token
+    fn current_token_is(&self, token: &Token) -> bool {
+        self.current_token == *token
     }
 
     fn next_token(&mut self) {
@@ -125,10 +138,10 @@ mod tests {
     #[test]
     fn let_statements() {
         let input = r#"
-let x = 5;
-let y = 10;
-let foobar = 838383;
-"#;
+            let x = 5;
+            let y = 10;
+            let foobar = 838383;
+        "#;
 
         let lexer = Lexer::new(input.to_string());
         let mut parser = Parser::new(lexer);
@@ -144,6 +157,32 @@ let foobar = 838383;
             assert_eq!(
                 statement,
                 &Statement::Let(test.0.to_string(), Expression::Ident(test.0.to_string()))
+            );
+        }
+    }
+
+    #[test]
+    fn return_statements() {
+        let input = r#"
+            return 5;
+            return 10;
+            return 993322;
+        "#;
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        check_parser_errors(&parser);
+
+        let tests = ["5", "10", "993322"];
+
+        for (i, test) in tests.iter().enumerate() {
+            let statement = &program.statements[i];
+
+            assert_eq!(
+                statement,
+                &Statement::Return(Expression::Ident("".to_string()))
             );
         }
     }
