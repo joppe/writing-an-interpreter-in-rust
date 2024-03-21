@@ -144,24 +144,31 @@ impl Parser {
         Ok(statement)
     }
 
-    fn parse_expression(&mut self, _precedence: Precedence) -> Option<Expression> {
-        match self.prefix_parser_fn() {
-            Some(parser_fn) => parser_fn(self),
-            None => None,
+    fn parse_expression(&mut self, _precedence: Precedence) -> Result<Expression, ParserError> {
+        let parser_fn = match self.prefix_parser_fn() {
+            Some(parser_fn) => parser_fn,
+            None => return Err(ParserError::ExpectedExpression(self.current_token.clone())),
+        };
+
+        match parser_fn(self) {
+            Some(expression) => Ok(expression),
+            None => Err(ParserError::ExpectedExpression(self.current_token.clone())),
         }
     }
 
     fn parse_expression_statement(&mut self) -> Result<Statement, ParserError> {
-        let expression = match self.parse_expression(Precedence::Lowest) {
-            Some(expression) => expression,
-            None => return Err(ParserError::ExpectedExpression(self.current_token.clone())),
-        };
+        let statement;
+        if let Ok(expression) = self.parse_expression(Precedence::Lowest) {
+            statement = expression;
+        } else {
+            return Err(ParserError::ExpectedExpression(self.current_token.clone()));
+        }
 
         if self.peek_token == Token::Semicolon {
             self.next_token();
         }
 
-        Ok(Statement::Expression(expression))
+        Ok(Statement::Expression(statement))
     }
 
     fn parse_statement(&mut self) -> Result<Statement, ParserError> {
