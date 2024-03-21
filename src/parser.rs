@@ -1,5 +1,6 @@
 use std::fmt;
 use std::mem;
+use std::result::Result;
 
 use crate::{
     ast::{Expression, Program, Statement},
@@ -9,18 +10,39 @@ use crate::{
 
 #[derive(Clone)]
 pub enum ParserError {
-    UnexpectedToken(Token, Token),
+    ExpectedAssign(Token),
+    ExpectedIdentifier(Token),
+    ExpectedExpression(Token),
 }
 
 impl fmt::Display for ParserError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ParserError::UnexpectedToken(expected, got) => {
-                write!(f, "expected next token to be {}, got {}", expected, got)
+            ParserError::ExpectedAssign(got) => {
+                write!(f, "expected assign token, got {}", got)
+            }
+            ParserError::ExpectedIdentifier(got) => {
+                write!(f, "expected identifier token, got {}", got)
+            }
+            ParserError::ExpectedExpression(got) => {
+                write!(f, "expected expression token, got {}", got)
             }
         }
     }
 }
+
+pub enum Precedence {
+    Lowest,
+    Equals,
+    LessGreater,
+    Sum,
+    Product,
+    Prefix,
+    Call,
+}
+
+type PrefixParserFn = fn(&Parser) -> Option<Expression>;
+//type InfixParserFn = fn(&Parser, Expression) -> Option<Expression>;
 
 pub struct Parser {
     lexer: Lexer,
@@ -49,12 +71,11 @@ impl Parser {
             statements: Vec::new(),
         };
 
-        while !self.current_token_is(&Token::Eof) {
-            let statement = self.parse_statement();
-
-            if let Some(statement) = statement {
-                program.statements.push(statement);
-            }
+        while self.current_token != Token::Eof {
+            match self.parse_statement() {
+                Ok(statement) => program.statements.push(statement),
+                Err(error) => self.errors.push(error),
+            };
 
             self.next_token();
         }
@@ -66,70 +87,99 @@ impl Parser {
         self.errors.clone()
     }
 
-    fn parse_let_statement(&mut self) -> Option<Statement> {
-        let identifier = match self.peek_token.clone() {
-            Token::Ident(ident) => {
-                self.next_token();
-                ident
-            }
-            _ => return None,
-        };
-
-        if !self.expect_peek(&Token::Assign) {
-            return None;
-        }
-
-        while !self.current_token_is(&Token::Semicolon) {
-            self.next_token();
-        }
-
-        Some(Statement::Let(
-            identifier.clone(),
-            Expression::Ident(identifier.clone()),
-        ))
-    }
-
-    fn parse_return_statement(&mut self) -> Option<Statement> {
-        let statement = Statement::Return(Expression::Ident("".to_string()));
-
-        self.next_token();
-
-        while !self.current_token_is(&Token::Semicolon) {
-            self.next_token();
-        }
-
-        Some(statement)
-    }
-
-    fn parse_statement(&mut self) -> Option<Statement> {
-        match self.current_token {
-            Token::Let => self.parse_let_statement(),
-            Token::Return => self.parse_return_statement(),
+    fn prefix_parser_fn(&self) -> Option<PrefixParserFn> {
+        match &self.current_token {
+            Token::Identifier(_) => Some(Parser::parse_identifier),
             _ => None,
         }
     }
 
-    fn expect_peek(&mut self, token: &Token) -> bool {
-        if self.peek_token_is(token) {
+    /*
+    fn infix_parser_fn(&self, expression: Expression) -> Option<InfixParserFn> {
+        match &self.peek_token {
+            _ => None,
+        }
+    }
+    */
+
+    fn parse_identifier(&self) -> Option<Expression> {
+        match &self.current_token {
+            Token::Identifier(ident) => Some(Expression::Idententifier(ident.clone())),
+            _ => None,
+        }
+    }
+
+    fn parse_let_statement(&mut self) -> Result<Statement, ParserError> {
+        let identifier = match self.peek_token.clone() {
+            Token::Identifier(ident) => {
+                self.next_token();
+                ident
+            }
+            _ => return Err(ParserError::ExpectedIdentifier(self.peek_token.clone())),
+        };
+
+        if !self.expect_peek(Token::Assign) {
+            return Err(ParserError::ExpectedAssign(self.peek_token.clone()));
+        }
+
+        while self.current_token != Token::Semicolon {
+            self.next_token();
+        }
+
+        Ok(Statement::Let(
+            identifier.clone(),
+            Expression::Idententifier(identifier.clone()),
+        ))
+    }
+
+    fn parse_return_statement(&mut self) -> Result<Statement, ParserError> {
+        let statement = Statement::Return(Expression::Idententifier("".to_string()));
+
+        self.next_token();
+
+        while self.current_token != Token::Semicolon {
+            self.next_token();
+        }
+
+        Ok(statement)
+    }
+
+    fn parse_expression(&mut self, _precedence: Precedence) -> Option<Expression> {
+        match self.prefix_parser_fn() {
+            Some(parser_fn) => parser_fn(self),
+            None => None,
+        }
+    }
+
+    fn parse_expression_statement(&mut self) -> Result<Statement, ParserError> {
+        let expression = match self.parse_expression(Precedence::Lowest) {
+            Some(expression) => expression,
+            None => return Err(ParserError::ExpectedExpression(self.current_token.clone())),
+        };
+
+        if self.peek_token == Token::Semicolon {
+            self.next_token();
+        }
+
+        Ok(Statement::Expression(expression))
+    }
+
+    fn parse_statement(&mut self) -> Result<Statement, ParserError> {
+        match self.current_token {
+            Token::Let => self.parse_let_statement(),
+            Token::Return => self.parse_return_statement(),
+            _ => self.parse_expression_statement(),
+        }
+    }
+
+    fn expect_peek(&mut self, token: Token) -> bool {
+        if self.peek_token == token {
             self.next_token();
 
             true
         } else {
-            self.errors.push(ParserError::UnexpectedToken(
-                token.clone(),
-                self.peek_token.clone(),
-            ));
-
             false
         }
-    }
-
-    fn peek_token_is(&self, token: &Token) -> bool {
-        self.peek_token == *token
-    }
-
-    fn current_token_is(&self, token: &Token) -> bool {
-        self.current_token == *token
     }
 
     fn next_token(&mut self) {
@@ -144,6 +194,24 @@ mod tests {
         ast::{Expression, Statement},
         lexer::Lexer,
     };
+
+    #[test]
+    fn identifier_expression() {
+        let input = "foobar;";
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        check_parser_errors(&parser);
+
+        let statement = &program.statements[0];
+
+        assert_eq!(
+            statement,
+            &Statement::Expression(Expression::Idententifier("foobar".to_string()))
+        );
+    }
 
     #[test]
     fn let_statements() {
@@ -166,7 +234,10 @@ mod tests {
 
             assert_eq!(
                 statement,
-                &Statement::Let(test.0.to_string(), Expression::Ident(test.0.to_string()))
+                &Statement::Let(
+                    test.0.to_string(),
+                    Expression::Idententifier(test.0.to_string())
+                )
             );
         }
     }
@@ -187,12 +258,12 @@ mod tests {
 
         let tests = ["5", "10", "993322"];
 
-        for (i, test) in tests.iter().enumerate() {
+        for (i, _test) in tests.iter().enumerate() {
             let statement = &program.statements[i];
 
             assert_eq!(
                 statement,
-                &Statement::Return(Expression::Ident("".to_string()))
+                &Statement::Return(Expression::Idententifier("".to_string()))
             );
         }
     }

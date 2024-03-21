@@ -4,6 +4,7 @@ use std::fmt;
 pub enum Statement {
     Let(String, Expression),
     Return(Expression),
+    Expression(Expression),
 }
 
 impl fmt::Display for Statement {
@@ -13,19 +14,20 @@ impl fmt::Display for Statement {
                 write!(f, "let {} = {};", identifier, expression)
             }
             Statement::Return(expression) => write!(f, "return {};", expression),
+            Statement::Expression(expression) => write!(f, "{}", expression),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
-    Ident(String),
+    Idententifier(String),
 }
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Expression::Ident(identifier) => write!(f, "{}", identifier),
+            Expression::Idententifier(identifier) => write!(f, "{}", identifier),
         }
     }
 }
@@ -42,5 +44,25 @@ impl fmt::Display for Program {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Expression, Program, Statement};
+
+    #[test]
+    fn to_string() {
+        let program = Program {
+            statements: vec![
+                Statement::Let(
+                    "myVar".to_string(),
+                    Expression::Idententifier("anotherVar".to_string()),
+                ),
+                Statement::Return(Expression::Idententifier("myVar".to_string())),
+            ],
+        };
+
+        assert_eq!(program.to_string(), "let myVar = anotherVar;return myVar;");
     }
 }

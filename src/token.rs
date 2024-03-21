@@ -6,7 +6,7 @@ pub enum Token {
     Eof,
 
     // Identifiers + literals
-    Ident(String),
+    Identifier(String),
     Int(String),
 
     // Operators
@@ -43,7 +43,7 @@ impl fmt::Display for Token {
         match self {
             Token::Illegal => write!(f, "ILLEGAL"),
             Token::Eof => write!(f, "EOF"),
-            Token::Ident(ident) => write!(f, "IDENT {}", ident),
+            Token::Identifier(ident) => write!(f, "IDENTIFIER {}", ident),
             Token::Int(int) => write!(f, "INT, {}", int),
             Token::Assign => write!(f, "="),
             Token::Plus => write!(f, "+"),
@@ -72,8 +72,8 @@ impl fmt::Display for Token {
     }
 }
 
-pub fn lookup_ident(ident: String) -> Token {
-    match ident.as_str() {
+pub fn lookup_identifier(identifier: String) -> Token {
+    match identifier.as_str() {
         "fn" => Token::Function,
         "let" => Token::Let,
         "true" => Token::True,
@@ -81,7 +81,7 @@ pub fn lookup_ident(ident: String) -> Token {
         "if" => Token::If,
         "else" => Token::Else,
         "return" => Token::Return,
-        _ => Token::Ident(ident),
+        _ => Token::Identifier(identifier),
     }
 }
 

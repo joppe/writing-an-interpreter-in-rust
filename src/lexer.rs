@@ -1,4 +1,4 @@
-use crate::token::{lookup_ident, Token};
+use crate::token::{lookup_identifier, Token};
 
 pub struct Lexer {
     input: Vec<char>,
@@ -63,7 +63,7 @@ impl Lexer {
                 if is_letter(self.char) {
                     let ident = self.read_identifier();
 
-                    return lookup_ident(ident);
+                    return lookup_identifier(ident);
                 } else if is_digit(self.char) {
                     let number = self.read_number();
 
@@ -140,61 +140,63 @@ mod tests {
 
     #[test]
     fn next_token() {
-        let input = "let five = 5;
-let ten = 10;
+        let input = "
+            let five = 5;
+            let ten = 10;
 
-let add = fn(x, y) {
-    x + y;
-};
+            let add = fn(x, y) {
+                x + y;
+            };
 
-let result = add(five, ten);
-!-/*5;
-5 < 10 > 5;
+            let result = add(five, ten);
+            !-/*5;
+            5 < 10 > 5;
 
-if (5 < 10) {
-    return true;
-} else {
-    return false;
-}
+            if (5 < 10) {
+                return true;
+            } else {
+                return false;
+            }
 
-10 == 10;
-10 != 9;";
+            10 == 10;
+            10 != 9;
+        ";
 
         let tests = vec![
             Token::Let,
-            Token::Ident("five".to_string()),
+            Token::Identifier("five".to_string()),
             Token::Assign,
             Token::Int("5".to_string()),
             Token::Semicolon,
             Token::Let,
-            Token::Ident("ten".to_string()),
+            Token::Identifier("ten".to_string()),
             Token::Assign,
             Token::Int("10".to_string()),
             Token::Semicolon,
             Token::Let,
-            Token::Ident("add".to_string()),
+            Token::Identifier("add".to_string()),
             Token::Assign,
             Token::Function,
             Token::Lparen,
-            Token::Ident("x".to_string()),
+            Token::Identifier("x".to_string()),
             Token::Comma,
-            Token::Ident("y".to_string()),
+            Token::Identifier("y".to_string()),
             Token::Rparen,
             Token::Lbrace,
-            Token::Ident("x".to_string()),
+            Token::Identifier("x".to_string()),
             Token::Plus,
-            Token::Ident("y".to_string()),
+            Token::Identifier("y".to_string()),
             Token::Semicolon,
             Token::Rbrace,
             Token::Semicolon,
             Token::Let,
-            Token::Ident("result".to_string()),
+            Token::Identifier("result".to_string()),
             Token::Assign,
-            Token::Ident("add".to_string()),
+            Token::Identifier("add".to_string()),
             Token::Lparen,
-            Token::Ident("five".to_string()),
+            Token::Identifier("five".to_string()),
             Token::Comma,
-            Token::Ident("ten".to_string()),
+            Token::Identifier("ten".to_string()),
             Token::Rparen,
             Token::Semicolon,
             Token::Bang,
