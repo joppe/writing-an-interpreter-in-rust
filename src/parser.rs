@@ -13,6 +13,9 @@ pub enum ParserError {
     ExpectedAssign(Token),
     ExpectedIdentifier(Token),
     ExpectedExpression(Token),
+    ExpectedPrefixParserFunction(Token),
+    ExpectedPrefixExpression(Token),
+    ExpectedPrefixOperator(Token),
     ExpectedInteger(Token),
 }
 
@@ -26,7 +29,16 @@ impl fmt::Display for ParserError {
                 write!(f, "expected identifier token, got {}", got)
             }
             ParserError::ExpectedExpression(got) => {
-                write!(f, "expected expression token, got {}", got)
+                write!(f, "expected expression, token {}", got)
+            }
+            ParserError::ExpectedPrefixParserFunction(got) => {
+                write!(f, "expected prefix parser function, token {}", got)
+            }
+            ParserError::ExpectedPrefixExpression(got) => {
+                write!(f, "expected prefix expression, token {}", got)
+            }
+            ParserError::ExpectedPrefixOperator(got) => {
+                write!(f, "expected prefix operator token, got {}", got)
             }
             ParserError::ExpectedInteger(got) => {
                 write!(f, "failed to parse integer, got {}", got)
@@ -45,7 +57,7 @@ pub enum Precedence {
     Call,
 }
 
-type PrefixParserFn = fn(&Parser) -> Result<Expression, ParserError>;
+type PrefixParserFn = fn(&mut Parser) -> Result<Expression, ParserError>;
 //type InfixParserFn = fn(&Parser, Expression) -> Option<Expression>;
 
 pub struct Parser {
@@ -95,6 +107,8 @@ impl Parser {
         match &self.current_token {
             Token::Identifier(_) => Some(Parser::parse_identifier),
             Token::Int(_) => Some(Parser::parse_integer),
+            Token::Bang => Some(Parser::parse_prefix_expression),
+            Token::Minus => Some(Parser::parse_prefix_expression),
             _ => None,
         }
     }
@@ -107,7 +121,7 @@ impl Parser {
     }
     */
 
-    fn parse_integer(&self) -> Result<Expression, ParserError> {
+    fn parse_integer(&mut self) -> Result<Expression, ParserError> {
         match &self.current_token {
             Token::Int(value) => match value.parse::<i64>() {
                 Ok(num) => Ok(Expression::Integer(num)),
@@ -117,7 +131,7 @@ impl Parser {
         }
     }
 
-    fn parse_identifier(&self) -> Result<Expression, ParserError> {
+    fn parse_identifier(&mut self) -> Result<Expression, ParserError> {
         match &self.current_token {
             Token::Identifier(ident) => Ok(Expression::Idententifier(ident.clone())),
             _ => Err(ParserError::ExpectedIdentifier(self.current_token.clone())),
@@ -147,6 +161,27 @@ impl Parser {
         ))
     }
 
+    fn parse_prefix_expression(&mut self) -> Result<Expression, ParserError> {
+        let operator = match &self.current_token {
+            Token::Bang => "!",
+            Token::Minus => "-",
+            _ => {
+                return Err(ParserError::ExpectedPrefixOperator(
+                    self.current_token.clone(),
+                ))
+            }
+        };
+
+        self.next_token();
+
+        let right = match self.parse_expression(Precedence::Prefix) {
+            Ok(expression) => expression,
+            Err(error) => return Err(error),
+        };
+
+        Ok(Expression::Prefix(operator.to_string(), Box::new(right)))
+    }
+
     fn parse_return_statement(&mut self) -> Result<Statement, ParserError> {
         let statement = Statement::Return(Expression::Idententifier("".to_string()));
 
@@ -162,7 +197,11 @@ impl Parser {
     fn parse_expression(&mut self, _precedence: Precedence) -> Result<Expression, ParserError> {
         let parser_fn = match self.prefix_parser_fn() {
             Some(parser_fn) => parser_fn,
-            None => return Err(ParserError::ExpectedExpression(self.current_token.clone())),
+            None => {
+                return Err(ParserError::ExpectedPrefixParserFunction(
+                    self.current_token.clone(),
+                ))
+            }
         };
 
         parser_fn(self)
@@ -213,6 +252,29 @@ mod tests {
         ast::{Expression, Statement},
         lexer::Lexer,
     };
+
+    #[test]
+    fn parsing_prefix_expressions() {
+        let tests = [("!5;", "!", 5), ("-15;", "-", 15)];
+
+        for (_i, test) in tests.iter().enumerate() {
+            let lexer = Lexer::new(test.0.to_string());
+            let mut parser = Parser::new(lexer);
+            let program = parser.parse_program();
+
+            check_parser_errors(&parser);
+
+            let statement = &program.statements[0];
+
+            assert_eq!(
+                statement,
+                &Statement::Expression(Expression::Prefix(
+                    test.1.to_string(),
+                    Box::new(Expression::Integer(test.2))
+                ))
+            )
+        }
+    }
 
     #[test]
     fn integer_expression() {

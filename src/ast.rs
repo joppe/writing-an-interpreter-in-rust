@@ -23,6 +23,7 @@ impl fmt::Display for Statement {
 pub enum Expression {
     Idententifier(String),
     Integer(i64),
+    Prefix(String, Box<Expression>),
 }
 
 impl fmt::Display for Expression {
@@ -30,6 +31,9 @@ impl fmt::Display for Expression {
         match self {
             Expression::Idententifier(identifier) => write!(f, "{}", identifier),
             Expression::Integer(value) => write!(f, "{}", value),
+            Expression::Prefix(operator, expression) => {
+                write!(f, "({}{})", operator, *expression)
+            }
         }
     }
 }
