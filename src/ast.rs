@@ -22,12 +22,14 @@ impl fmt::Display for Statement {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Idententifier(String),
+    Integer(i64),
 }
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Expression::Idententifier(identifier) => write!(f, "{}", identifier),
+            Expression::Integer(value) => write!(f, "{}", value),
         }
     }
 }

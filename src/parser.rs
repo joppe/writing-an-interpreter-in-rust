@@ -13,6 +13,7 @@ pub enum ParserError {
     ExpectedAssign(Token),
     ExpectedIdentifier(Token),
     ExpectedExpression(Token),
+    ExpectedInteger(Token),
 }
 
 impl fmt::Display for ParserError {
@@ -26,6 +27,9 @@ impl fmt::Display for ParserError {
             }
             ParserError::ExpectedExpression(got) => {
                 write!(f, "expected expression token, got {}", got)
+            }
+            ParserError::ExpectedInteger(got) => {
+                write!(f, "failed to parse integer, got {}", got)
             }
         }
     }
@@ -41,7 +45,7 @@ pub enum Precedence {
     Call,
 }
 
-type PrefixParserFn = fn(&Parser) -> Option<Expression>;
+type PrefixParserFn = fn(&Parser) -> Result<Expression, ParserError>;
 //type InfixParserFn = fn(&Parser, Expression) -> Option<Expression>;
 
 pub struct Parser {
@@ -90,6 +94,7 @@ impl Parser {
     fn prefix_parser_fn(&self) -> Option<PrefixParserFn> {
         match &self.current_token {
             Token::Identifier(_) => Some(Parser::parse_identifier),
+            Token::Int(_) => Some(Parser::parse_integer),
             _ => None,
         }
     }
@@ -102,10 +107,20 @@ impl Parser {
     }
     */
 
-    fn parse_identifier(&self) -> Option<Expression> {
+    fn parse_integer(&self) -> Result<Expression, ParserError> {
         match &self.current_token {
-            Token::Identifier(ident) => Some(Expression::Idententifier(ident.clone())),
-            _ => None,
+            Token::Int(value) => match value.parse::<i64>() {
+                Ok(num) => Ok(Expression::Integer(num)),
+                Err(_) => return Err(ParserError::ExpectedInteger(self.current_token.clone())),
+            },
+            _ => Err(ParserError::ExpectedInteger(self.current_token.clone())),
+        }
+    }
+
+    fn parse_identifier(&self) -> Result<Expression, ParserError> {
+        match &self.current_token {
+            Token::Identifier(ident) => Ok(Expression::Idententifier(ident.clone())),
+            _ => Err(ParserError::ExpectedIdentifier(self.current_token.clone())),
         }
     }
 
@@ -150,10 +165,7 @@ impl Parser {
             None => return Err(ParserError::ExpectedExpression(self.current_token.clone())),
         };
 
-        match parser_fn(self) {
-            Some(expression) => Ok(expression),
-            None => Err(ParserError::ExpectedExpression(self.current_token.clone())),
-        }
+        parser_fn(self)
     }
 
     fn parse_expression_statement(&mut self) -> Result<Statement, ParserError> {
@@ -201,6 +213,21 @@ mod tests {
         ast::{Expression, Statement},
         lexer::Lexer,
     };
+
+    #[test]
+    fn integer_expression() {
+        let input = "5;";
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        check_parser_errors(&parser);
+
+        let statement = &program.statements[0];
+
+        assert_eq!(statement, &Statement::Expression(Expression::Integer(5i64)));
+    }
 
     #[test]
     fn identifier_expression() {
