@@ -42,6 +42,20 @@ impl fmt::Display for Expression {
     }
 }
 
+pub enum PrefixOperator {
+    Bang,
+    Minus,
+}
+
+impl fmt::Display for PrefixOperator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PrefixOperator::Bang => write!(f, "!"),
+            PrefixOperator::Minus => write!(f, "-"),
+        }
+    }
+}
+
 pub enum InfixOperator {
     Plus,
     Minus,
