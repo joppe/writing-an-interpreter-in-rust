@@ -24,6 +24,7 @@ pub enum Expression {
     Idententifier(String),
     Integer(i64),
     Prefix(String, Box<Expression>),
+    Infix(Box<Expression>, String, Box<Expression>),
 }
 
 impl fmt::Display for Expression {
@@ -31,9 +32,38 @@ impl fmt::Display for Expression {
         match self {
             Expression::Idententifier(identifier) => write!(f, "{}", identifier),
             Expression::Integer(value) => write!(f, "{}", value),
-            Expression::Prefix(operator, expression) => {
-                write!(f, "({}{})", operator, *expression)
+            Expression::Prefix(operator, right) => {
+                write!(f, "({}{})", operator, *right)
             }
+            Expression::Infix(left, operator, right) => {
+                write!(f, "({} {} {})", *left, operator, *right)
+            }
+        }
+    }
+}
+
+pub enum InfixOperator {
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Equal,
+    NotEqual,
+    LessThan,
+    GreaterThan,
+}
+
+impl fmt::Display for InfixOperator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            InfixOperator::Plus => write!(f, "+"),
+            InfixOperator::Minus => write!(f, "-"),
+            InfixOperator::Multiply => write!(f, "*"),
+            InfixOperator::Divide => write!(f, "/"),
+            InfixOperator::Equal => write!(f, "=="),
+            InfixOperator::NotEqual => write!(f, "!="),
+            InfixOperator::LessThan => write!(f, "<"),
+            InfixOperator::GreaterThan => write!(f, ">"),
         }
     }
 }

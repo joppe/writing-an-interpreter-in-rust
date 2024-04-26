@@ -1,7 +1,7 @@
 use std::fmt;
-use std::mem;
 use std::result::Result;
 
+use crate::ast::InfixOperator;
 use crate::{
     ast::{Expression, Program, Statement},
     lexer::Lexer,
@@ -15,6 +15,7 @@ pub enum ParserError {
     ExpectedExpression(Token),
     ExpectedPrefixParserFunction(Token),
     ExpectedPrefixExpression(Token),
+    ExpectedInfixExpression(Token),
     ExpectedPrefixOperator(Token),
     ExpectedInteger(Token),
 }
@@ -37,6 +38,9 @@ impl fmt::Display for ParserError {
             ParserError::ExpectedPrefixExpression(got) => {
                 write!(f, "expected prefix expression, token {}", got)
             }
+            ParserError::ExpectedInfixExpression(got) => {
+                write!(f, "expected infix expression, token {}", got)
+            }
             ParserError::ExpectedPrefixOperator(got) => {
                 write!(f, "expected prefix operator token, got {}", got)
             }
@@ -47,6 +51,7 @@ impl fmt::Display for ParserError {
     }
 }
 
+#[derive(PartialEq, PartialOrd)]
 pub enum Precedence {
     Lowest,
     Equals,
@@ -57,8 +62,24 @@ pub enum Precedence {
     Call,
 }
 
+impl Precedence {
+    fn by_token(token: Token) -> Precedence {
+        match token {
+            Token::Eq => Precedence::Equals,
+            Token::NotEq => Precedence::Equals,
+            Token::Lt => Precedence::LessGreater,
+            Token::Gt => Precedence::LessGreater,
+            Token::Plus => Precedence::Sum,
+            Token::Minus => Precedence::Sum,
+            Token::Slash => Precedence::Product,
+            Token::Asterisk => Precedence::Product,
+            _ => Precedence::Lowest,
+        }
+    }
+}
+
 type PrefixParserFn = fn(&mut Parser) -> Result<Expression, ParserError>;
-//type InfixParserFn = fn(&Parser, Expression) -> Option<Expression>;
+type InfixParserFn = fn(&mut Parser, Expression) -> Result<Expression, ParserError>;
 
 pub struct Parser {
     lexer: Lexer,
@@ -113,19 +134,25 @@ impl Parser {
         }
     }
 
-    /*
-    fn infix_parser_fn(&self, expression: Expression) -> Option<InfixParserFn> {
+    fn infix_parser_fn(&self) -> Option<InfixParserFn> {
         match &self.peek_token {
+            Token::Plus => Some(Parser::parse_infix_expression),
+            Token::Minus => Some(Parser::parse_infix_expression),
+            Token::Slash => Some(Parser::parse_infix_expression),
+            Token::Asterisk => Some(Parser::parse_infix_expression),
+            Token::Eq => Some(Parser::parse_infix_expression),
+            Token::NotEq => Some(Parser::parse_infix_expression),
+            Token::Lt => Some(Parser::parse_infix_expression),
+            Token::Gt => Some(Parser::parse_infix_expression),
             _ => None,
         }
     }
-    */
 
     fn parse_integer(&mut self) -> Result<Expression, ParserError> {
         match &self.current_token {
             Token::Int(value) => match value.parse::<i64>() {
                 Ok(num) => Ok(Expression::Integer(num)),
-                Err(_) => return Err(ParserError::ExpectedInteger(self.current_token.clone())),
+                Err(_) => Err(ParserError::ExpectedInteger(self.current_token.clone())),
             },
             _ => Err(ParserError::ExpectedInteger(self.current_token.clone())),
         }
@@ -158,6 +185,38 @@ impl Parser {
         Ok(Statement::Let(
             identifier.clone(),
             Expression::Idententifier(identifier.clone()),
+        ))
+    }
+
+    fn parse_infix_expression(&mut self, left: Expression) -> Result<Expression, ParserError> {
+        let infix_operator = match self.current_token {
+            Token::Plus => InfixOperator::Plus,
+            Token::Minus => InfixOperator::Minus,
+            Token::Asterisk => InfixOperator::Multiply,
+            Token::Slash => InfixOperator::Divide,
+            Token::Eq => InfixOperator::Equal,
+            Token::NotEq => InfixOperator::NotEqual,
+            Token::Lt => InfixOperator::LessThan,
+            Token::Gt => InfixOperator::GreaterThan,
+            _ => {
+                return Err(ParserError::ExpectedPrefixOperator(
+                    self.current_token.clone(),
+                ))
+            }
+        };
+        let precedence = Precedence::by_token(self.current_token.clone());
+
+        self.next_token();
+
+        let right = match self.parse_expression(precedence) {
+            Ok(expression) => expression,
+            Err(error) => return Err(error),
+        };
+
+        Ok(Expression::Infix(
+            Box::new(left),
+            infix_operator.to_string(),
+            Box::new(right),
         ))
     }
 
@@ -194,9 +253,9 @@ impl Parser {
         Ok(statement)
     }
 
-    fn parse_expression(&mut self, _precedence: Precedence) -> Result<Expression, ParserError> {
-        let parser_fn = match self.prefix_parser_fn() {
-            Some(parser_fn) => parser_fn,
+    fn parse_expression(&mut self, precedence: Precedence) -> Result<Expression, ParserError> {
+        let prefix_parser_fn = match self.prefix_parser_fn() {
+            Some(prefix_parser_fn) => prefix_parser_fn,
             None => {
                 return Err(ParserError::ExpectedPrefixParserFunction(
                     self.current_token.clone(),
@@ -204,7 +263,22 @@ impl Parser {
             }
         };
 
-        parser_fn(self)
+        let mut left = prefix_parser_fn(self)?;
+
+        while self.peek_token != Token::Semicolon
+            && precedence < Precedence::by_token(self.peek_token.clone())
+        {
+            let infix_parser_fn = match self.infix_parser_fn() {
+                Some(infix_parser_fn) => infix_parser_fn,
+                None => return Ok(left),
+            };
+
+            self.next_token();
+
+            left = infix_parser_fn(self, left)?;
+        }
+
+        Ok(left)
     }
 
     fn parse_expression_statement(&mut self) -> Result<Statement, ParserError> {
@@ -241,7 +315,9 @@ impl Parser {
     }
 
     fn next_token(&mut self) {
-        self.current_token = mem::replace(&mut self.peek_token, self.lexer.next_token());
+        //self.current_token = mem::replace(&mut self.peek_token, self.lexer.next_token());
+        self.current_token = self.peek_token.clone();
+        self.peek_token = self.lexer.next_token();
     }
 }
 
@@ -252,6 +328,35 @@ mod tests {
         ast::{Expression, Statement},
         lexer::Lexer,
     };
+
+    #[test]
+    fn parsing_infix_expressions() {
+        let tests = [
+            ("5 + 5;", 5, "+", 5),
+            ("5 - 5;", 5, "-", 5),
+            ("5 * 5;", 5, "*", 5),
+            ("5 / 5;", 5, "/", 5),
+        ];
+
+        for (_i, test) in tests.iter().enumerate() {
+            let lexer = Lexer::new(test.0.to_string());
+            let mut parser = Parser::new(lexer);
+            let program = parser.parse_program();
+
+            check_parser_errors(&parser);
+
+            let statement = &program.statements[0];
+
+            assert_eq!(
+                statement,
+                &Statement::Expression(Expression::Infix(
+                    Box::new(Expression::Integer(test.1)),
+                    test.2.to_string(),
+                    Box::new(Expression::Integer(test.3))
+                ))
+            );
+        }
+    }
 
     #[test]
     fn parsing_prefix_expressions() {
