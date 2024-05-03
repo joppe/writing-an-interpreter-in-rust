@@ -20,11 +20,30 @@ impl fmt::Display for Statement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct Block {
+    pub statements: Vec<Statement>,
+}
+
+impl fmt::Display for Block {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for statement in &self.statements {
+            write!(f, "{}", statement)?;
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Idententifier(String),
     Integer(i64),
     Prefix(String, Box<Expression>),
     Infix(Box<Expression>, String, Box<Expression>),
+    Boolean(bool),
+    If(Box<Expression>, Block, Option<Block>),
+    Fn(Vec<String>, Block),
+    Call(Box<Expression>, Vec<Expression>),
 }
 
 impl fmt::Display for Expression {
@@ -37,6 +56,48 @@ impl fmt::Display for Expression {
             }
             Expression::Infix(left, operator, right) => {
                 write!(f, "({} {} {})", *left, operator, *right)
+            }
+            Expression::Boolean(value) => write!(f, "{}", value),
+            Expression::If(condition, consequence, alternative) => {
+                write!(f, "if {} {{", condition)?;
+                write!(f, "{}", consequence)?;
+                write!(f, "}}")?;
+
+                if let Some(alternative) = alternative {
+                    write!(f, " else {{")?;
+                    write!(f, "{}", alternative)?;
+                    write!(f, "}}")?;
+                }
+
+                Ok(())
+            }
+            Expression::Fn(parameters, body) => {
+                write!(f, "fn(")?;
+
+                for (i, parameter) in parameters.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+
+                    write!(f, "{}", parameter)?;
+                }
+
+                write!(f, ") {{")?;
+                write!(f, "{}", body)?;
+                write!(f, "}}")
+            }
+            Expression::Call(function, arguments) => {
+                write!(f, "{}(", function)?;
+
+                for (i, argument) in arguments.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+
+                    write!(f, "{}", argument)?;
+                }
+
+                write!(f, ")")
             }
         }
     }
