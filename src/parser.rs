@@ -71,7 +71,7 @@ impl fmt::Display for ParserError {
     }
 }
 
-#[derive(PartialEq, PartialOrd)]
+#[derive(PartialEq, PartialOrd, Debug)]
 pub enum Precedence {
     Lowest,
     Equals,
@@ -602,7 +602,7 @@ mod tests {
             ),
         ];
 
-        for (_i, test) in tests.iter().enumerate() {
+        for test in tests.iter() {
             let input = test.0;
 
             let lexer = Lexer::new(input.to_string());
@@ -683,7 +683,7 @@ mod tests {
             ),
         ];
 
-        for (_, test) in tests.iter().enumerate() {
+        for test in tests.iter() {
             let input = test.0;
 
             let lexer = Lexer::new(input.to_string());
@@ -730,7 +730,7 @@ mod tests {
             ),
         ];
 
-        for (_i, test) in tests.iter().enumerate() {
+        for test in tests.iter() {
             let lexer = Lexer::new(test.0.to_string());
             let mut parser = Parser::new(lexer);
             let program = parser.parse_program();
@@ -800,7 +800,7 @@ mod tests {
             ),
         ];
 
-        for (_i, test) in tests.iter().enumerate() {
+        for test in tests.iter() {
             let lexer = Lexer::new(test.0.to_string());
             let mut parser = Parser::new(lexer);
             let program = parser.parse_program();
@@ -846,7 +846,7 @@ mod tests {
             ),
         ];
 
-        for (_i, test) in tests.iter().enumerate() {
+        for test in tests.iter() {
             let lexer = Lexer::new(test.0.to_string());
             let mut parser = Parser::new(lexer);
             let program = parser.parse_program();
@@ -912,7 +912,7 @@ mod tests {
             ),
         ];
 
-        for (_i, test) in tests.iter().enumerate() {
+        for test in tests.iter() {
             let lexer = Lexer::new(test.0.to_string());
             let mut parser = Parser::new(lexer);
             let program = parser.parse_program();
@@ -936,7 +936,7 @@ mod tests {
             ),
         ];
 
-        for (_i, test) in tests.iter().enumerate() {
+        for test in tests.iter() {
             let lexer = Lexer::new(test.0.to_string());
             let mut parser = Parser::new(lexer);
             let program = parser.parse_program();
