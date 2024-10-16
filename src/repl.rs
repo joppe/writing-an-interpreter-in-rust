@@ -1,6 +1,6 @@
 use std::io::{stdin, stdout, Write};
 
-use crate::{lexer::Lexer, parser::Parser};
+use crate::{eval::eval, lexer::Lexer, parser::Parser};
 
 pub fn start() {
     loop {
@@ -22,7 +22,8 @@ pub fn start() {
             continue;
         }
 
-        println!("{}", program);
+        let evaluated = eval(program);
+        println!("{}", evaluated);
     }
 }
 
