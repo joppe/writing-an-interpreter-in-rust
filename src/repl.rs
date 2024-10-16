@@ -1,8 +1,10 @@
 use std::io::{stdin, stdout, Write};
 
-use crate::{eval::eval, lexer::Lexer, parser::Parser};
+use crate::{environment::Environment, eval::eval, lexer::Lexer, parser::Parser};
 
 pub fn start() {
+    let mut environment = Environment::new();
+
     loop {
         let input = ask_input(">> ");
 
@@ -22,7 +24,7 @@ pub fn start() {
             continue;
         }
 
-        let evaluated = eval(program);
+        let evaluated = eval(program, &mut environment);
         println!("{}", evaluated);
     }
 }

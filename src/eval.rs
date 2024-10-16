@@ -1,13 +1,14 @@
 use crate::{
     ast::{Block, Expression, Program, Statement},
+    environment::Environment,
     object::Object,
 };
 
-pub fn eval(program: Program) -> Object {
+pub fn eval(program: Program, environment: &mut Environment) -> Object {
     let mut result = Object::Null;
 
     for statement in program.statements {
-        result = eval_statement(statement);
+        result = eval_statement(statement, environment);
 
         match result {
             Object::Error(_) => return result,
@@ -19,11 +20,11 @@ pub fn eval(program: Program) -> Object {
     result
 }
 
-fn eval_statement(statement: Statement) -> Object {
+fn eval_statement(statement: Statement, environment: &mut Environment) -> Object {
     match statement {
-        Statement::Expression(expression) => eval_expression(expression),
+        Statement::Expression(expression) => eval_expression(expression, environment),
         Statement::Return(expression) => {
-            let value = eval_expression(expression);
+            let value = eval_expression(expression, environment);
 
             if let Object::Error(_) = value {
                 return value;
@@ -31,16 +32,26 @@ fn eval_statement(statement: Statement) -> Object {
 
             Object::Return(Box::new(value))
         }
-        _ => Object::Null,
+        Statement::Let(identifier, expression) => {
+            let value = eval_expression(expression, environment);
+
+            if let Object::Error(_) = value {
+                return value;
+            }
+
+            environment.set(identifier, value.clone());
+
+            value
+        }
     }
 }
 
-fn eval_expression(expression: Expression) -> Object {
+fn eval_expression(expression: Expression, environment: &mut Environment) -> Object {
     match expression {
         Expression::Integer(value) => Object::Integer(value),
         Expression::Boolean(value) => Object::Boolean(value),
         Expression::Prefix(operator, right) => {
-            let right = eval_expression(*right);
+            let right = eval_expression(*right, environment);
 
             if let Object::Error(_) = right {
                 return right;
@@ -49,8 +60,8 @@ fn eval_expression(expression: Expression) -> Object {
             eval_prefix_expression(operator, right)
         }
         Expression::Infix(left, operator, right) => {
-            let left = eval_expression(*left);
-            let right = eval_expression(*right);
+            let left = eval_expression(*left, environment);
+            let right = eval_expression(*right, environment);
 
             if let Object::Error(_) = left {
                 return left;
@@ -63,29 +74,33 @@ fn eval_expression(expression: Expression) -> Object {
             eval_infix_expression(operator, &left, &right)
         }
         Expression::If(condition, consequence, alternative) => {
-            let condition = eval_expression(*condition);
+            let condition = eval_expression(*condition, environment);
 
             if let Object::Error(_) = condition {
                 return condition;
             }
 
             if condition.is_truthy() {
-                return eval_block_statement(consequence);
+                return eval_block_statement(consequence, environment);
             } else if let Some(alternative) = alternative {
-                return eval_block_statement(alternative);
+                return eval_block_statement(alternative, environment);
             }
 
             Object::Null
         }
+        Expression::Idententifier(identifier) => match environment.get(&identifier) {
+            Some(value) => value.clone(),
+            None => Object::Error(format!("identifier not found: {}", identifier)),
+        },
         _ => Object::Null,
     }
 }
 
-fn eval_block_statement(block: Block) -> Object {
+fn eval_block_statement(block: Block, environment: &mut Environment) -> Object {
     let mut result = Object::Null;
 
     for statement in block.statements {
-        result = eval_statement(statement);
+        result = eval_statement(statement, environment);
 
         match result {
             Object::Error(_) => return result,
@@ -179,9 +194,28 @@ fn new_error(message: String) -> Object {
 
 #[cfg(test)]
 mod tests {
-    use crate::{lexer::Lexer, object::Object, parser::Parser};
+    use crate::{environment::Environment, lexer::Lexer, object::Object, parser::Parser};
 
     use super::eval;
+
+    #[test]
+    fn test_let_statemetns() {
+        let tests = vec![
+            ("let a = 5; a;", Object::Integer(5)),
+            ("let a = 5 * 5; a;", Object::Integer(25)),
+            ("let a = 5; let b = a; b;", Object::Integer(5)),
+            (
+                "let a = 5; let b = a; let c = a + b + 5; c;",
+                Object::Integer(15),
+            ),
+        ];
+
+        for (input, expected) in tests {
+            let evaluated = test_eval(input);
+
+            assert_eq!(evaluated.to_string(), expected.to_string());
+        }
+    }
 
     #[test]
     fn test_error_handling() {
@@ -207,6 +241,7 @@ mod tests {
                 ",
                 "unknown operator: Boolean + Boolean",
             ),
+            ("foobar", "identifier not found: foobar"),
         ];
 
         for (input, expected) in tests {
@@ -338,10 +373,11 @@ mod tests {
     }
 
     fn test_eval(input: &str) -> Object {
+        let mut environment = Environment::new();
         let lexer = Lexer::new(input.to_string());
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
-        eval(program)
+        eval(program, &mut environment)
     }
 }
