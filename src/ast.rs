@@ -38,6 +38,7 @@ impl fmt::Display for Block {
 pub enum Expression {
     Idententifier(String),
     Integer(i64),
+    String(String),
     Prefix(String, Box<Expression>),
     Infix(Box<Expression>, String, Box<Expression>),
     Boolean(bool),
@@ -51,6 +52,7 @@ impl fmt::Display for Expression {
         match self {
             Expression::Idententifier(identifier) => write!(f, "{}", identifier),
             Expression::Integer(value) => write!(f, "{}", value),
+            Expression::String(value) => write!(f, "{}", value),
             Expression::Prefix(operator, right) => {
                 write!(f, "({}{})", operator, *right)
             }

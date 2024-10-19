@@ -118,6 +118,7 @@ fn eval_expression(expression: Expression, environment: Rc<RefCell<Environment>>
                 apply_function(function, arguments)
             }
         }
+        Expression::String(value) => Object::String(value),
     }
 }
 
@@ -175,11 +176,26 @@ fn eval_infix_expression(operator: String, left: &Object, right: &Object) -> Obj
         (Object::Boolean(left), Object::Boolean(right)) => {
             eval_boolean_infix_expression(operator, *left, *right)
         }
+        (Object::String(left), Object::String(right)) => {
+            eval_string_infix_expression(operator, left.to_string(), right.to_string())
+        }
         _ => new_error(format!(
             "type mismatch: {} {} {}",
             left.type_name(),
             operator,
             right.type_name()
+        )),
+    }
+}
+
+fn eval_string_infix_expression(operator: String, left: String, right: String) -> Object {
+    match operator.as_str() {
+        "+" => Object::String(format!("{}{}", left, right)),
+        _ => new_error(format!(
+            "unknown operator: {} {} {}",
+            Object::String(left).type_name(),
+            operator,
+            Object::String(right).type_name()
         )),
     }
 }
@@ -254,6 +270,22 @@ mod tests {
     use crate::{environment::Environment, lexer::Lexer, object::Object, parser::Parser};
 
     use super::eval;
+
+    #[test]
+    fn test_string_concatenation() {
+        let input = "\"Hello\" + \" \" + \"World!\"";
+        let result = test_eval(input);
+
+        assert_eq!(result, Object::String("Hello World!".to_string()));
+    }
+
+    #[test]
+    fn test_string_literal() {
+        let input = "\"Hello World!\"";
+        let result = test_eval(input);
+
+        assert_eq!(result, Object::String("Hello World!".to_string()));
+    }
 
     #[test]
     fn test_closures() {
@@ -355,6 +387,7 @@ mod tests {
                 "unknown operator: Boolean + Boolean",
             ),
             ("foobar", "identifier not found: foobar"),
+            ("\"Hello\" - \"World\"", "unknown operator: String - String"),
         ];
 
         for (input, expected) in tests {

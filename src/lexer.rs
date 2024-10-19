@@ -58,6 +58,7 @@ impl Lexer {
             '}' => Token::Rbrace,
             '<' => Token::Lt,
             '>' => Token::Gt,
+            '"' => Token::String(self.read_string()),
             EOF => Token::Eof,
             _ => {
                 if is_letter(self.char) {
@@ -123,6 +124,20 @@ impl Lexer {
 
         self.input[position..self.position].iter().collect()
     }
+
+    fn read_string(&mut self) -> String {
+        let position = self.position + 1;
+
+        loop {
+            self.read_char();
+
+            if self.char == '"' || self.char == EOF {
+                break;
+            }
+        }
+
+        self.input[position..self.position].iter().collect()
+    }
 }
 
 fn is_letter(char: char) -> bool {
@@ -160,6 +175,8 @@ mod tests {
 
             10 == 10;
             10 != 9;
+            \"foobar\"
+            \"foo bar\"
         ";
 
         let tests = vec![
@@ -236,6 +253,8 @@ mod tests {
             Token::NotEq,
             Token::Int("9".to_string()),
             Token::Semicolon,
+            Token::String("foobar".to_string()),
+            Token::String("foo bar".to_string()),
             Token::Eof,
         ];
         let mut lexer = Lexer::new(input.to_string());

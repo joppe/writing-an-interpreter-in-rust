@@ -23,6 +23,7 @@ pub enum ParserError {
     ExpectedInfixExpression(Token),
     ExpectedPrefixOperator(Token),
     ExpectedInteger(Token),
+    ExpectedString(Token),
 }
 
 impl fmt::Display for ParserError {
@@ -66,6 +67,9 @@ impl fmt::Display for ParserError {
             }
             ParserError::ExpectedInteger(got) => {
                 write!(f, "failed to parse integer, got {}", got)
+            }
+            ParserError::ExpectedString(got) => {
+                write!(f, "failed to parse string, got {}", got)
             }
         }
     }
@@ -156,6 +160,7 @@ impl Parser {
             Token::Lparen => Some(Parser::parse_grouped_expression),
             Token::If => Some(Parser::parse_if_expression),
             Token::Function => Some(Parser::parse_function_literal),
+            Token::String(_) => Some(Parser::parse_string_literal),
             _ => None,
         }
     }
@@ -311,6 +316,13 @@ impl Parser {
         }
 
         Ok(Block { statements })
+    }
+
+    fn parse_string_literal(&mut self) -> Result<Expression, ParserError> {
+        match &self.current_token {
+            Token::String(value) => Ok(Expression::String(value.to_string())),
+            _ => Err(ParserError::ExpectedInteger(self.current_token.clone())),
+        }
     }
 
     fn parse_function_literal(&mut self) -> Result<Expression, ParserError> {
@@ -547,6 +559,22 @@ mod tests {
         ast::{Block, Expression, Statement},
         lexer::Lexer,
     };
+
+    #[test]
+    fn test_string_literal_expression() {
+        let input = "\"hello world\";";
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        let statement = &program.statements[0];
+
+        assert_eq!(
+            statement,
+            &Statement::Expression(Expression::String("hello world".to_string()))
+        );
+    }
 
     #[test]
     fn call_expression_parsing() {
