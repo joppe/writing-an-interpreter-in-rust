@@ -332,7 +332,7 @@ impl Parser {
             Err(error) => return Err(error),
         };
 
-        Ok(Expression::Fn(parameters, body))
+        Ok(Expression::Function(parameters, body))
     }
 
     fn parse_function_parameters(&mut self) -> Result<Vec<String>, ParserError> {
@@ -584,18 +584,18 @@ mod tests {
         let tests = [
             (
                 "fn() {};",
-                &Statement::Expression(Expression::Fn(vec![], Block { statements: vec![] })),
+                &Statement::Expression(Expression::Function(vec![], Block { statements: vec![] })),
             ),
             (
                 "fn(x) {};",
-                &Statement::Expression(Expression::Fn(
+                &Statement::Expression(Expression::Function(
                     vec!["x".to_string()],
                     Block { statements: vec![] },
                 )),
             ),
             (
                 "fn(x, y, z) {};",
-                &Statement::Expression(Expression::Fn(
+                &Statement::Expression(Expression::Function(
                     vec!["x".to_string(), "y".to_string(), "z".to_string()],
                     Block { statements: vec![] },
                 )),
@@ -627,7 +627,7 @@ mod tests {
 
         assert_eq!(
             statement,
-            &Statement::Expression(Expression::Fn(
+            &Statement::Expression(Expression::Function(
                 vec!["x".to_string(), "y".to_string()],
                 Block {
                     statements: vec![Statement::Expression(Expression::Infix(

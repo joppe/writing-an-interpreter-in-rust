@@ -1,9 +1,13 @@
-use std::io::{stdin, stdout, Write};
+use std::{
+    cell::RefCell,
+    io::{stdin, stdout, Write},
+    rc::Rc,
+};
 
 use crate::{environment::Environment, eval::eval, lexer::Lexer, parser::Parser};
 
 pub fn start() {
-    let mut environment = Environment::new();
+    let environment: Rc<RefCell<Environment>> = Rc::new(RefCell::new(Environment::new()));
 
     loop {
         let input = ask_input(">> ");
@@ -24,7 +28,7 @@ pub fn start() {
             continue;
         }
 
-        let evaluated = eval(program, &mut environment);
+        let evaluated = eval(program, Rc::clone(&environment));
         println!("{}", evaluated);
     }
 }

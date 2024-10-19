@@ -42,7 +42,7 @@ pub enum Expression {
     Infix(Box<Expression>, String, Box<Expression>),
     Boolean(bool),
     If(Box<Expression>, Block, Option<Block>),
-    Fn(Vec<String>, Block),
+    Function(Vec<String>, Block),
     Call(Box<Expression>, Vec<Expression>),
 }
 
@@ -71,7 +71,7 @@ impl fmt::Display for Expression {
 
                 Ok(())
             }
-            Expression::Fn(parameters, body) => {
+            Expression::Function(parameters, body) => {
                 write!(f, "fn(")?;
 
                 for (i, parameter) in parameters.iter().enumerate() {
