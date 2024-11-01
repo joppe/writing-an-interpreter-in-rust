@@ -2,6 +2,8 @@ use std::{cell::RefCell, fmt, rc::Rc};
 
 use crate::{ast::Block, environment::Environment};
 
+pub type BuiltinFunction = fn(Vec<Object>) -> Object;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
     Integer(i64),
@@ -11,6 +13,7 @@ pub enum Object {
     Return(Box<Object>),
     Error(String),
     Function(Vec<String>, Block, Rc<RefCell<Environment>>),
+    Builtin(String, BuiltinFunction),
 }
 
 impl fmt::Display for Object {
@@ -25,6 +28,7 @@ impl fmt::Display for Object {
                 write!(f, "fn({}) {{\n {} \n}}", params.join(", "), body)
             }
             Object::Error(message) => write!(f, "{}", message),
+            Object::Builtin(name, _) => write!(f, "{}", name),
         }
     }
 }
@@ -39,6 +43,7 @@ impl Object {
             Object::Return(_) => "Return",
             Object::Function(..) => "Function",
             Object::Error(_) => "Error",
+            Object::Builtin(..) => "Builtin",
         }
     }
 

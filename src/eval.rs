@@ -2,6 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     ast::{Block, Expression, Program, Statement},
+    builtins::Builtins,
     environment::Environment,
     object::Object,
 };
@@ -90,10 +91,9 @@ fn eval_expression(expression: Expression, environment: Rc<RefCell<Environment>>
 
             Object::Null
         }
-        Expression::Idententifier(identifier) => match environment.borrow().get(&identifier) {
-            Some(value) => value.clone(),
-            None => Object::Error(format!("identifier not found: {}", identifier)),
-        },
+        Expression::Idententifier(identifier) => {
+            eval_identifier(identifier, Rc::clone(&environment))
+        }
         Expression::Function(params, body) => {
             Object::Function(params, body, Rc::clone(&environment))
         }
@@ -119,6 +119,19 @@ fn eval_expression(expression: Expression, environment: Rc<RefCell<Environment>>
             }
         }
         Expression::String(value) => Object::String(value),
+    }
+}
+
+fn eval_identifier(identifier: String, environment: Rc<RefCell<Environment>>) -> Object {
+    match environment.borrow().get(&identifier) {
+        Some(value) => value.clone(),
+        None => {
+            if let Some(builtin) = Builtins::lookup(&identifier) {
+                Object::Builtin(identifier, builtin)
+            } else {
+                new_error(format!("identifier not found: {}", identifier))
+            }
+        }
     }
 }
 
@@ -148,6 +161,7 @@ fn apply_function(function: Object, arguments: Vec<Object>) -> Object {
                 _ => result,
             }
         }
+        Object::Builtin(_, builtin) => builtin(arguments),
         _ => new_error(format!("not a function: {}", function.type_name())),
     }
 }
@@ -270,6 +284,29 @@ mod tests {
     use crate::{environment::Environment, lexer::Lexer, object::Object, parser::Parser};
 
     use super::eval;
+
+    #[test]
+    fn test_buildin_functions() {
+        let tests = vec![
+            ("len(\"\")", Object::Integer(0)),
+            ("len(\"four\")", Object::Integer(4)),
+            ("len(\"hello world\")", Object::Integer(11)),
+            (
+                "len(1)",
+                Object::Error("argument to 'len' not supported, got Integer".to_string()),
+            ),
+            (
+                "len(\"one\", \"two\")",
+                Object::Error("wrong number of arguments, got=2, want=1".to_string()),
+            ),
+        ];
+
+        for (input, expected) in tests {
+            let evaluated = test_eval(input);
+
+            assert_eq!(evaluated.to_string(), expected.to_string());
+        }
+    }
 
     #[test]
     fn test_string_concatenation() {
