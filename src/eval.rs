@@ -119,6 +119,51 @@ fn eval_expression(expression: Expression, environment: Rc<RefCell<Environment>>
             }
         }
         Expression::String(value) => Object::String(value),
+        Expression::Array(elements) => {
+            let elements = elements
+                .into_iter()
+                .map(|element| eval_expression(element, Rc::clone(&environment)))
+                .collect::<Vec<Object>>();
+
+            if elements
+                .iter()
+                .any(|element| matches!(element, Object::Error(_)))
+            {
+                new_error("error evaluating array elements".to_string())
+            } else {
+                Object::Array(elements)
+            }
+        }
+        Expression::Index(left, right) => {
+            let left = eval_expression(*left, Rc::clone(&environment));
+            let right = eval_expression(*right, Rc::clone(&environment));
+
+            if let Object::Error(_) = left {
+                return left;
+            }
+
+            if let Object::Error(_) = right {
+                return right;
+            }
+
+            eval_index_expression(left, right)
+        }
+    }
+}
+
+fn eval_index_expression(left: Object, index: Object) -> Object {
+    match (left.clone(), index) {
+        (Object::Array(array), Object::Integer(index)) => {
+            if index < 0 || index >= array.len() as i64 {
+                Object::Null
+            } else {
+                array[index as usize].clone()
+            }
+        }
+        _ => new_error(format!(
+            "index operator not supported: {}",
+            left.type_name()
+        )),
     }
 }
 
@@ -284,6 +329,49 @@ mod tests {
     use crate::{environment::Environment, lexer::Lexer, object::Object, parser::Parser};
 
     use super::eval;
+
+    #[test]
+    fn test_array_index_expression() {
+        let tests = vec![
+            ("[1, 2, 3][0]", Object::Integer(1)),
+            ("[1, 2, 3][1]", Object::Integer(2)),
+            ("[1, 2, 3][2]", Object::Integer(3)),
+            ("let i = 0; [1][i];", Object::Integer(1)),
+            ("[1, 2, 3][1 + 1];", Object::Integer(3)),
+            ("let myArray = [1, 2, 3]; myArray[2];", Object::Integer(3)),
+            (
+                "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+                Object::Integer(6),
+            ),
+            (
+                "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]",
+                Object::Integer(2),
+            ),
+            ("[1, 2, 3][3]", Object::Null),
+            ("[1, 2, 3][-1]", Object::Null),
+        ];
+
+        for (input, expected) in tests {
+            let result = test_eval(input);
+
+            assert_eq!(result, expected);
+        }
+    }
+
+    #[test]
+    fn test_array_literals() {
+        let input = "[1, 2 * 2, 3 + 3]";
+        let result = test_eval(input);
+
+        assert_eq!(
+            result,
+            Object::Array(vec![
+                Object::Integer(1),
+                Object::Integer(4),
+                Object::Integer(6)
+            ])
+        );
+    }
 
     #[test]
     fn test_buildin_functions() {

@@ -14,6 +14,7 @@ pub enum Object {
     Error(String),
     Function(Vec<String>, Block, Rc<RefCell<Environment>>),
     Builtin(String, BuiltinFunction),
+    Array(Vec<Object>),
 }
 
 impl fmt::Display for Object {
@@ -29,6 +30,10 @@ impl fmt::Display for Object {
             }
             Object::Error(message) => write!(f, "{}", message),
             Object::Builtin(name, _) => write!(f, "{}", name),
+            Object::Array(elements) => {
+                let elements: Vec<String> = elements.iter().map(|e| e.to_string()).collect();
+                write!(f, "[{}]", elements.join(", "))
+            }
         }
     }
 }
@@ -44,6 +49,7 @@ impl Object {
             Object::Function(..) => "Function",
             Object::Error(_) => "Error",
             Object::Builtin(..) => "Builtin",
+            Object::Array(_) => "Array",
         }
     }
 

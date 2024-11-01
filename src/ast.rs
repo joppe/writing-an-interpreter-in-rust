@@ -45,6 +45,8 @@ pub enum Expression {
     If(Box<Expression>, Block, Option<Block>),
     Function(Vec<String>, Block),
     Call(Box<Expression>, Vec<Expression>),
+    Array(Vec<Expression>),
+    Index(Box<Expression>, Box<Expression>),
 }
 
 impl fmt::Display for Expression {
@@ -100,6 +102,22 @@ impl fmt::Display for Expression {
                 }
 
                 write!(f, ")")
+            }
+            Expression::Array(elements) => {
+                write!(f, "[")?;
+
+                for (i, element) in elements.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+
+                    write!(f, "{}", element)?;
+                }
+
+                write!(f, "]")
+            }
+            Expression::Index(left, index) => {
+                write!(f, "({}[{}])", left, index)
             }
         }
     }
