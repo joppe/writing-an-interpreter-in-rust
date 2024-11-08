@@ -37,6 +37,7 @@ impl Lexer {
                     Token::Assign
                 }
             }
+            ':' => Token::Colon,
             ';' => Token::Semicolon,
             '(' => Token::Lparen,
             ')' => Token::Rparen,
@@ -180,6 +181,7 @@ mod tests {
             \"foobar\"
             \"foo bar\"
             [1, 2];
+            {\"foo\": \"bar\"}
         ";
 
         let tests = vec![
@@ -264,6 +266,11 @@ mod tests {
             Token::Int("2".to_string()),
             Token::Rbracket,
             Token::Semicolon,
+            Token::Lbrace,
+            Token::String("foo".to_string()),
+            Token::Colon,
+            Token::String("bar".to_string()),
+            Token::Rbrace,
             Token::Eof,
         ];
         let mut lexer = Lexer::new(input.to_string());

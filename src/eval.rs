@@ -1,10 +1,10 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
     ast::{Block, Expression, Program, Statement},
     builtins::Builtins,
     environment::Environment,
-    object::Object,
+    object::{HashKey, Object},
 };
 
 pub fn eval(program: Program, environment: Rc<RefCell<Environment>>) -> Object {
@@ -148,6 +148,36 @@ fn eval_expression(expression: Expression, environment: Rc<RefCell<Environment>>
 
             eval_index_expression(left, right)
         }
+        Expression::Hash(pairs) => {
+            let mut hash = HashMap::new();
+
+            for (key_expression, value_expression) in pairs {
+                let key = eval_expression(key_expression, Rc::clone(&environment));
+
+                if let Object::Error(_) = key {
+                    return key;
+                }
+
+                let key = match key {
+                    Object::String(value) => HashKey::String(value),
+                    Object::Integer(value) => HashKey::Integer(value),
+                    Object::Boolean(value) => HashKey::Boolean(value),
+                    _ => {
+                        return new_error(format!("unusable as hash key: {}", key.type_name()));
+                    }
+                };
+
+                let value = eval_expression(value_expression, Rc::clone(&environment));
+
+                if let Object::Error(_) = value {
+                    return value;
+                }
+
+                hash.insert(key, value);
+            }
+
+            Object::Hash(hash)
+        }
     }
 }
 
@@ -160,6 +190,21 @@ fn eval_index_expression(left: Object, index: Object) -> Object {
                 array[index as usize].clone()
             }
         }
+        (Object::Hash(hash), index) => match index {
+            Object::String(value) => match hash.get(&HashKey::String(value)) {
+                Some(value) => value.clone(),
+                None => Object::Null,
+            },
+            Object::Integer(value) => match hash.get(&HashKey::Integer(value)) {
+                Some(value) => value.clone(),
+                None => Object::Null,
+            },
+            Object::Boolean(value) => match hash.get(&HashKey::Boolean(value)) {
+                Some(value) => value.clone(),
+                None => Object::Null,
+            },
+            _ => new_error(format!("unusable as hash key: {}", index.type_name())),
+        },
         _ => new_error(format!(
             "index operator not supported: {}",
             left.type_name()
@@ -324,11 +369,61 @@ fn new_error(message: String) -> Object {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc};
+    use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-    use crate::{environment::Environment, lexer::Lexer, object::Object, parser::Parser};
+    use crate::{
+        environment::Environment,
+        lexer::Lexer,
+        object::{HashKey, Object},
+        parser::Parser,
+    };
 
     use super::eval;
+
+    #[test]
+    fn test_hash_index_expressions() {
+        let tests = vec![
+            ("{\"foo\": 5}[\"foo\"]", Object::Integer(5)),
+            ("{\"foo\": 5}[\"bar\"]", Object::Null),
+            ("let key = \"foo\"; {\"foo\": 5}[key]", Object::Integer(5)),
+            ("{}[\"foo\"]", Object::Null),
+            ("{5: 5}[5]", Object::Integer(5)),
+            ("{true: 5}[true]", Object::Integer(5)),
+            ("{false: 5}[false]", Object::Integer(5)),
+        ];
+
+        for (input, expected) in tests {
+            let result = test_eval(input);
+
+            assert_eq!(result, expected);
+        }
+    }
+
+    #[test]
+    fn test_hash_literals() {
+        let input = "
+            let two = \"two\";
+            {
+                \"one\": 10 - 9,
+                two: 1 + 1,
+                \"thr\" + \"ee\": 6 / 2,
+                4: 4,
+                true: 5,
+                false: 6
+            }
+        ";
+        let result = test_eval(input);
+
+        let mut expected = HashMap::new();
+        expected.insert(HashKey::String("one".to_string()), Object::Integer(1));
+        expected.insert(HashKey::String("two".to_string()), Object::Integer(2));
+        expected.insert(HashKey::String("three".to_string()), Object::Integer(3));
+        expected.insert(HashKey::Integer(4), Object::Integer(4));
+        expected.insert(HashKey::Boolean(true), Object::Integer(5));
+        expected.insert(HashKey::Boolean(false), Object::Integer(6));
+
+        assert_eq!(result, Object::Hash(expected));
+    }
 
     #[test]
     fn test_array_index_expression() {
@@ -513,6 +608,10 @@ mod tests {
             ),
             ("foobar", "identifier not found: foobar"),
             ("\"Hello\" - \"World\"", "unknown operator: String - String"),
+            (
+                "{\"name\": \"Monkey\"}[fn(x) { x }];",
+                "unusable as hash key: Function",
+            ),
         ];
 
         for (input, expected) in tests {

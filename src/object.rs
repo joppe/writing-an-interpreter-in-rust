@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, fmt, hash::Hash, rc::Rc};
 
 use crate::{ast::Block, environment::Environment};
 
@@ -15,6 +15,7 @@ pub enum Object {
     Function(Vec<String>, Block, Rc<RefCell<Environment>>),
     Builtin(String, BuiltinFunction),
     Array(Vec<Object>),
+    Hash(HashMap<HashKey, Object>),
 }
 
 impl fmt::Display for Object {
@@ -34,6 +35,13 @@ impl fmt::Display for Object {
                 let elements: Vec<String> = elements.iter().map(|e| e.to_string()).collect();
                 write!(f, "[{}]", elements.join(", "))
             }
+            Object::Hash(pairs) => {
+                let pairs: Vec<String> = pairs
+                    .iter()
+                    .map(|(key, value)| format!("{}: {}", key, value))
+                    .collect();
+                write!(f, "{{{}}}", pairs.join(", "))
+            }
         }
     }
 }
@@ -50,6 +58,7 @@ impl Object {
             Object::Error(_) => "Error",
             Object::Builtin(..) => "Builtin",
             Object::Array(_) => "Array",
+            Object::Hash(_) => "Hash",
         }
     }
 
@@ -58,6 +67,23 @@ impl Object {
             Object::Null => false,
             Object::Boolean(value) => *value,
             _ => true,
+        }
+    }
+}
+
+#[derive(Eq, Hash, Debug, PartialEq, Clone)]
+pub enum HashKey {
+    String(String),
+    Integer(i64),
+    Boolean(bool),
+}
+
+impl fmt::Display for HashKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            HashKey::String(value) => write!(f, "{}", value),
+            HashKey::Integer(value) => write!(f, "{}", value),
+            HashKey::Boolean(value) => write!(f, "{}", value),
         }
     }
 }

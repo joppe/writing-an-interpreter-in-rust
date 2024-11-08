@@ -47,6 +47,7 @@ pub enum Expression {
     Call(Box<Expression>, Vec<Expression>),
     Array(Vec<Expression>),
     Index(Box<Expression>, Box<Expression>),
+    Hash(Vec<(Expression, Expression)>),
 }
 
 impl fmt::Display for Expression {
@@ -118,6 +119,19 @@ impl fmt::Display for Expression {
             }
             Expression::Index(left, index) => {
                 write!(f, "({}[{}])", left, index)
+            }
+            Expression::Hash(pairs) => {
+                write!(f, "{{")?;
+
+                for (i, (key, value)) in pairs.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+
+                    write!(f, "{}: {}", key, value)?;
+                }
+
+                write!(f, "}}")
             }
         }
     }

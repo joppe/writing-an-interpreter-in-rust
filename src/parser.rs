@@ -168,6 +168,7 @@ impl Parser {
             Token::Function => Some(Parser::parse_function_literal),
             Token::String(_) => Some(Parser::parse_string_literal),
             Token::Lbracket => Some(Parser::parse_array_literal),
+            Token::Lbrace => Some(Parser::parse_hash_literal),
             _ => None,
         }
     }
@@ -186,6 +187,42 @@ impl Parser {
             Token::Lbracket => Some(Parser::parse_index_expression),
             _ => None,
         }
+    }
+
+    fn parse_hash_literal(&mut self) -> Result<Expression, ParserError> {
+        let mut pairs = Vec::new();
+
+        while self.peek_token != Token::Rbrace {
+            self.next_token();
+
+            let key = match self.parse_expression(Precedence::Lowest) {
+                Ok(expression) => expression,
+                Err(error) => return Err(error),
+            };
+
+            if !self.expect_peek(Token::Colon) {
+                return Err(ParserError::ExpectedAssign(self.peek_token.clone()));
+            }
+
+            self.next_token();
+
+            let value = match self.parse_expression(Precedence::Lowest) {
+                Ok(expression) => expression,
+                Err(error) => return Err(error),
+            };
+
+            pairs.push((key, value));
+
+            if self.peek_token != Token::Rbrace && !self.expect_peek(Token::Comma) {
+                return Err(ParserError::ExpectedExpression(self.peek_token.clone()));
+            }
+        }
+
+        if !self.expect_peek(Token::Rbrace) {
+            return Err(ParserError::ExpectedClosingBracket(self.peek_token.clone()));
+        }
+
+        Ok(Expression::Hash(pairs))
     }
 
     fn parse_index_expression(&mut self, left: Expression) -> Result<Expression, ParserError> {
@@ -591,6 +628,89 @@ mod tests {
         ast::{Block, Expression, Statement},
         lexer::Lexer,
     };
+
+    #[test]
+    fn test_parsing_hash_literals_with_expressions() {
+        let input = "{ \"one\": 0 + 1, \"two\": 10 - 8, \"three\": 15 / 5 }";
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        let statement = &program.statements[0];
+
+        assert_eq!(
+            statement,
+            &Statement::Expression(Expression::Hash(vec![
+                (
+                    Expression::String("one".to_string()),
+                    Expression::Infix(
+                        Box::new(Expression::Integer(0)),
+                        "+".to_string(),
+                        Box::new(Expression::Integer(1))
+                    )
+                ),
+                (
+                    Expression::String("two".to_string()),
+                    Expression::Infix(
+                        Box::new(Expression::Integer(10)),
+                        "-".to_string(),
+                        Box::new(Expression::Integer(8))
+                    )
+                ),
+                (
+                    Expression::String("three".to_string()),
+                    Expression::Infix(
+                        Box::new(Expression::Integer(15)),
+                        "/".to_string(),
+                        Box::new(Expression::Integer(5))
+                    )
+                )
+            ]))
+        )
+    }
+
+    #[test]
+    fn test_parsing_empty_hash_literal() {
+        let input = "{}";
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        let statement = &program.statements[0];
+
+        assert_eq!(statement, &Statement::Expression(Expression::Hash(vec![])))
+    }
+
+    #[test]
+    fn test_parsing_hash_literal() {
+        let input = "{ \"one\": 1, \"two\": 2, \"three\": 3 }";
+
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        let statement = &program.statements[0];
+
+        assert_eq!(
+            statement,
+            &Statement::Expression(Expression::Hash(vec![
+                (
+                    Expression::String("one".to_string()),
+                    Expression::Integer(1)
+                ),
+                (
+                    Expression::String("two".to_string()),
+                    Expression::Integer(2)
+                ),
+                (
+                    Expression::String("three".to_string()),
+                    Expression::Integer(3)
+                )
+            ]))
+        )
+    }
 
     #[test]
     fn test_parsing_index_expressions() {
