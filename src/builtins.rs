@@ -19,6 +19,8 @@ impl Builtins {
                 ("last".to_string(), last),
                 ("rest".to_string(), rest),
                 ("push".to_string(), push),
+                ("len".to_string(), len),
+                ("puts".to_string(), puts),
             ],
         }
     }
@@ -32,6 +34,14 @@ impl Builtins {
             .find(|(builtin_name, _)| builtin_name == name)
             .map(|(_, builtin_fn)| *builtin_fn)
     }
+}
+
+fn puts(args: Vec<Object>) -> Object {
+    for arg in args {
+        println!("{}", arg);
+    }
+
+    Object::Null
 }
 
 fn len(args: Vec<Object>) -> Object {
